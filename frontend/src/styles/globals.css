@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-surface text-white;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #111;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  .skeleton {
+    @apply bg-surface-2 animate-pulse rounded;
+  }
+
+  .btn-primary {
+    @apply bg-accent text-black font-medium px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors;
+  }
+
+  .btn-ghost {
+    @apply text-white/60 hover:text-white px-3 py-1.5 rounded-lg hover:bg-surface-2 transition-colors text-sm;
+  }
+
+  .input-dark {
+    @apply bg-surface-2 border border-border rounded-lg px-4 py-3 text-white placeholder-white/30
+           focus:outline-none focus:border-white/40 transition-colors w-full;
+  }
+
+  .filter-pill {
+    @apply px-3 py-1 rounded-full text-sm border border-border text-white/50
+           hover:text-white hover:border-white/40 transition-all cursor-pointer;
+  }
+
+  .filter-pill.active {
+    @apply bg-accent text-black border-accent font-medium;
+  }
+}
