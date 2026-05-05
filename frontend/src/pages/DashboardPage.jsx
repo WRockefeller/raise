@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../hooks/useAuth';
-import { api } from '../../utils/api';
-import Navbar from '../../components/layout/Navbar';
-import { VideoCard, VideoCardSkeleton } from '../../components/dashboard/VideoCard';
+import { useAuth } from '../hooks/useAuth';
+import { api } from '../utils/api';
+import Navbar from '../components/layout/Navbar';
+import { VideoCard, VideoCardSkeleton } from '../components/dashboard/VideoCard';
 
 const DEFAULT_FILTERS = { time: 'week', sort: 'trending' };
 const SKELETON_COUNT = 12;

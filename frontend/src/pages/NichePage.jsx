@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { api } from '../../utils/api';
+import { useAuth } from '../hooks/useAuth';
+import { api } from '../utils/api';
 
 const NICHES = [
   'fitness', 'gaming', 'tech', 'music', 'cooking', 'travel',
