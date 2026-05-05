@@ -3,118 +3,91 @@ const NodeCache = require('node-cache');
 const pool = require('../db');
 
 const cache = new NodeCache({ stdTTL: parseInt(process.env.CACHE_TTL) || 600 });
-
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
 
-const NICHE_CATEGORY_MAP = {
-  fitness:'17',gym:'17',bodybuilding:'17',yoga:'17',running:'17',cycling:'17',
-  sports:'17',football:'17',basketball:'17',soccer:'17',tennis:'17',golf:'17',
-  boxing:'17',mma:'17',wrestling:'17',swimming:'17',
-  gaming:'20',games:'20',esports:'20',minecraft:'20',fortnite:'20',
-  roblox:'20',valorant:'20',playstation:'20',xbox:'20',nintendo:'20',
-  music:'10',hiphop:'10',rap:'10',pop:'10',rock:'10',edm:'10',
-  jazz:'10',classical:'10',rnb:'10',country:'10',
-  tech:'28',technology:'28',science:'28',programming:'28',coding:'28',
-  ai:'28',crypto:'28',bitcoin:'28',blockchain:'28',gadgets:'28',
-  apple:'28',android:'28',software:'28',
-  news:'25',politics:'25',
-  education:'27',learning:'27',history:'27',math:'27',language:'27',
-  finance:'27',investing:'27',stocks:'27',realestate:'27',money:'27',
-  business:'27',entrepreneurship:'27',
-  cooking:'26',food:'26',fashion:'26',beauty:'26',makeup:'26',
-  skincare:'26',hair:'26',diy:'26',crafts:'26',homeimprovement:'26',gardening:'26',
-  travel:'19',vlog:'19',adventure:'19',hiking:'19',
-  cars:'2',automotive:'2',supercars:'2',motorcycles:'2',trucks:'2',tesla:'2',
-  comedy:'23',funny:'23',memes:'23',standup:'23',
-  entertainment:'24',celebrity:'24',movies:'24',tvshows:'24',anime:'24',
-  film:'1',animation:'1',
-  pets:'15',dogs:'15',cats:'15',animals:'15',wildlife:'15',
-  kids:'20',family:'20',
+// Multiple search terms per niche to get more videos
+const NICHE_QUERIES = {
+  fitness:        ['fitness workout','gym training','weight loss exercise','bodybuilding','home workout','cardio workout','strength training','fitness motivation'],
+  gaming:         ['gaming highlights','best games 2025','gaming news','game review','esports','gaming tips','new game release','gaming moments'],
+  tech:           ['tech review 2025','new technology','gadgets 2025','ai technology','tech news','smartphone review','laptop review','tech explained'],
+  music:          ['new music 2025','music video','song cover','music production','new album','music mix','singer performance','music reaction'],
+  cooking:        ['easy recipes','cooking tutorial','food recipe','meal prep','baking','cooking tips','dinner ideas','healthy food'],
+  travel:         ['travel vlog','travel tips','best destinations','travel guide','solo travel','budget travel','travel 2025','explore world'],
+  cars:           ['car review','supercar','new car 2025','car modification','car race','electric car','car test drive','automotive news'],
+  fashion:        ['fashion haul','outfit ideas','style tips','fashion trends','clothing review','fashion lookbook','ootd','fashion week'],
+  beauty:         ['makeup tutorial','skincare routine','beauty tips','hair tutorial','nail art','beauty products','glow up','beauty hacks'],
+  finance:        ['investing tips','stock market','passive income','financial advice','crypto update','money tips','wealth building','financial freedom'],
+  business:       ['business tips','entrepreneur advice','startup story','business strategy','how to make money','side hustle','business growth','success story'],
+  science:        ['science explained','science experiment','space news','physics explained','biology facts','chemistry','scientific discovery','nature documentary'],
+  education:      ['learn fast','study tips','history facts','math explained','educational video','knowledge facts','how things work','learning hacks'],
+  comedy:         ['funny moments','comedy sketch','stand up comedy','funny fails','prank videos','comedy show','funny reactions','humor'],
+  sports:         ['sports highlights','sports news','match highlights','athlete training','sports moments','best goals','sports analysis','game recap'],
+  anime:          ['anime review','best anime 2025','anime moments','anime explained','manga review','anime reaction','new anime','anime top list'],
+  crypto:         ['crypto news','bitcoin update','cryptocurrency','crypto investing','blockchain explained','altcoins','crypto trading','defi'],
+  ai:             ['ai news','artificial intelligence','chatgpt','ai tools','machine learning','ai explained','future of ai','ai update 2025'],
+  health:         ['health tips','mental health','nutrition advice','wellness routine','healthy lifestyle','diet tips','medical facts','mindfulness'],
+  diy:            ['diy project','home improvement','diy crafts','woodworking','diy decoration','how to fix','home renovation','creative projects'],
 };
 
-function getCategoryId(niche) {
-  if (!niche) return null;
-  const key = niche.toLowerCase().trim().replace(/\s+/g, '');
-  for (const [k, v] of Object.entries(NICHE_CATEGORY_MAP)) {
-    if (key.includes(k)) return v;
+// Fallback queries for unknown niches
+function getQueries(niche) {
+  if (!niche) return ['trending videos 2025'];
+  const key = niche.toLowerCase().trim();
+  if (NICHE_QUERIES[key]) return NICHE_QUERIES[key];
+  // Try partial match
+  for (const [k, v] of Object.entries(NICHE_QUERIES)) {
+    if (key.includes(k) || k.includes(key)) return v;
   }
-  return null;
+  // Custom niche - generate queries
+  return [
+    `${niche} 2025`,
+    `best ${niche}`,
+    `${niche} tips`,
+    `${niche} tutorial`,
+    `${niche} news`,
+    `${niche} review`,
+  ];
 }
 
-// Parse ISO 8601 duration to seconds e.g. PT1M30S = 90
 function parseDuration(iso) {
   if (!iso) return 0;
   const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!match) return 0;
-  const h = parseInt(match[1] || 0);
-  const m = parseInt(match[2] || 0);
-  const s = parseInt(match[3] || 0);
-  return h * 3600 + m * 60 + s;
+  return (parseInt(match[1]||0)*3600) + (parseInt(match[2]||0)*60) + parseInt(match[3]||0);
 }
 
-async function fetchYouTubeVideos({ niche, maxResults = 50 }) {
-  const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) throw new Error('YOUTUBE_API_KEY not configured');
-
-  const categoryId = getCategoryId(niche);
-
-  let videoIds = [];
-  let snippets = {};
-
-  if (!categoryId && niche) {
-    // Use search for unknown niches
-    const url = `${YOUTUBE_API_BASE}/search?${new URLSearchParams({
-      part: 'snippet',
-      q: niche,
-      type: 'video',
-      order: 'viewCount',
-      maxResults: 50,
-      key: apiKey,
-    })}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(`YouTube API error: ${err.error?.message || res.statusText}`);
-    }
-    const data = await res.json();
-    videoIds = (data.items || []).map(i => i.id.videoId);
-    (data.items || []).forEach(i => { snippets[i.id.videoId] = i.snippet; });
-  } else {
-    // Use mostPopular chart
-    const params = new URLSearchParams({
-      part: 'snippet,statistics',
-      chart: 'mostPopular',
-      maxResults: 50,
-      regionCode: 'US',
-      key: apiKey,
-    });
-    if (categoryId) params.set('videoCategoryId', categoryId);
-    const url = `${YOUTUBE_API_BASE}/videos?${params}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(`YouTube API error: ${err.error?.message || res.statusText}`);
-    }
-    const data = await res.json();
-    videoIds = (data.items || []).map(i => i.id);
-    (data.items || []).forEach(i => { snippets[i.id] = { ...i.snippet, statistics: i.statistics }; });
-  }
-
-  if (!videoIds.length) return [];
-
-  // Fetch full details including contentDetails (duration)
-  const detailsUrl = `${YOUTUBE_API_BASE}/videos?${new URLSearchParams({
-    part: 'snippet,statistics,contentDetails',
-    id: videoIds.join(','),
+async function searchVideos(query, apiKey) {
+  const url = `${YOUTUBE_API_BASE}/search?${new URLSearchParams({
+    part: 'id',
+    q: query,
+    type: 'video',
+    order: 'viewCount',
+    maxResults: 50,
     key: apiKey,
   })}`;
-  const detailsRes = await fetch(detailsUrl);
-  if (!detailsRes.ok) {
-    const err = await detailsRes.json();
-    throw new Error(`YouTube API error: ${err.error?.message || detailsRes.statusText}`);
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`YouTube API error: ${err.error?.message || res.statusText}`);
   }
-  const detailsData = await detailsRes.json();
-  return detailsData.items || [];
+  const data = await res.json();
+  return (data.items || []).map(i => i.id.videoId).filter(Boolean);
+}
+
+async function fetchVideoDetails(ids, apiKey) {
+  if (!ids.length) return [];
+  const url = `${YOUTUBE_API_BASE}/videos?${new URLSearchParams({
+    part: 'snippet,statistics,contentDetails',
+    id: ids.join(','),
+    key: apiKey,
+  })}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`YouTube API error: ${err.error?.message || res.statusText}`);
+  }
+  const data = await res.json();
+  return data.items || [];
 }
 
 async function upsertVideoWithSnapshot(item) {
@@ -129,17 +102,11 @@ async function upsertVideoWithSnapshot(item) {
   await pool.query(
     `INSERT INTO videos (id, title, channel, channel_id, thumbnail, category, published_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-     ON CONFLICT (id) DO UPDATE SET
-       title = EXCLUDED.title,
-       updated_at = NOW()`,
+     ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, updated_at = NOW()`,
     [
-      videoId,
-      snippet.title,
-      snippet.channelTitle,
-      snippet.channelId,
+      videoId, snippet.title, snippet.channelTitle, snippet.channelId,
       snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url,
-      snippet.categoryId,
-      snippet.publishedAt,
+      snippet.categoryId, snippet.publishedAt,
     ]
   );
 
@@ -149,17 +116,14 @@ async function upsertVideoWithSnapshot(item) {
   );
 
   const snapshots = await pool.query(
-    `SELECT views, timestamp FROM snapshots
-     WHERE video_id = $1
-     ORDER BY timestamp DESC LIMIT 2`,
+    `SELECT views, timestamp FROM snapshots WHERE video_id = $1 ORDER BY timestamp DESC LIMIT 2`,
     [videoId]
   );
 
   let growthRate = 0;
   if (snapshots.rows.length === 2) {
     const [latest, previous] = snapshots.rows;
-    const timeDiffHours =
-      (new Date(latest.timestamp) - new Date(previous.timestamp)) / (1000 * 60 * 60);
+    const timeDiffHours = (new Date(latest.timestamp) - new Date(previous.timestamp)) / 3600000;
     if (timeDiffHours > 0) {
       growthRate = Math.round((latest.views - previous.views) / timeDiffHours);
     }
@@ -171,20 +135,18 @@ async function upsertVideoWithSnapshot(item) {
     channel: snippet.channelTitle,
     channelId: snippet.channelId,
     thumbnail: snippet.thumbnails?.medium?.url || snippet.thumbnails?.default?.url,
-    views,
-    likes,
-    duration: durationSecs,
+    views, likes, duration: durationSecs,
     publishedAt: snippet.publishedAt,
     growthRate,
     growthLabel: formatGrowth(growthRate),
   };
 }
 
-function formatGrowth(viewsPerHour) {
-  if (viewsPerHour <= 0) return null;
-  if (viewsPerHour >= 1_000_000) return `+${(viewsPerHour / 1_000_000).toFixed(1)}M/hr`;
-  if (viewsPerHour >= 1_000) return `+${Math.round(viewsPerHour / 1000)}k/hr`;
-  return `+${viewsPerHour}/hr`;
+function formatGrowth(n) {
+  if (n <= 0) return null;
+  if (n >= 1_000_000) return `+${(n/1_000_000).toFixed(1)}M/hr`;
+  if (n >= 1_000) return `+${Math.round(n/1000)}k/hr`;
+  return `+${n}/hr`;
 }
 
 async function getVideos({ niche, sort = 'views', time = 'week' }) {
@@ -192,8 +154,42 @@ async function getVideos({ niche, sort = 'views', time = 'week' }) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  const items = await fetchYouTubeVideos({ niche });
-  const videos = await Promise.all(items.map(upsertVideoWithSnapshot));
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) throw new Error('YOUTUBE_API_KEY not configured');
+
+  const queries = getQueries(niche);
+  const seenIds = new Set();
+  const allIds = [];
+
+  // Run first 4 queries in parallel to get ~200 video IDs fast
+  const batchSize = 4;
+  for (let i = 0; i < Math.min(queries.length, batchSize); i++) {
+    try {
+      const ids = await searchVideos(queries[i], apiKey);
+      ids.forEach(id => {
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          allIds.push(id);
+        }
+      });
+    } catch (err) {
+      console.error(`Query failed: ${queries[i]}`, err.message);
+    }
+  }
+
+  // Fetch details in batches of 50
+  const allItems = [];
+  for (let i = 0; i < allIds.length; i += 50) {
+    const batch = allIds.slice(i, i + 50);
+    try {
+      const items = await fetchVideoDetails(batch, apiKey);
+      allItems.push(...items);
+    } catch (err) {
+      console.error('Details fetch failed:', err.message);
+    }
+  }
+
+  const videos = await Promise.all(allItems.map(upsertVideoWithSnapshot));
 
   const now = Date.now();
   const timeMs = { today: 86400000, week: 604800000, month: 2592000000 }[time] || 604800000;
@@ -203,15 +199,10 @@ async function getVideos({ niche, sort = 'views', time = 'week' }) {
   });
 
   let sorted;
-  if (sort === 'views') {
-    sorted = filtered.sort((a, b) => b.views - a.views);
-  } else if (sort === 'trending') {
-    sorted = filtered.sort((a, b) => b.growthRate - a.growthRate);
-  } else if (sort === 'newest') {
-    sorted = filtered.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-  } else {
-    sorted = filtered;
-  }
+  if (sort === 'views') sorted = filtered.sort((a, b) => b.views - a.views);
+  else if (sort === 'trending') sorted = filtered.sort((a, b) => b.growthRate - a.growthRate);
+  else if (sort === 'newest') sorted = filtered.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  else sorted = filtered;
 
   cache.set(cacheKey, sorted);
   return sorted;
