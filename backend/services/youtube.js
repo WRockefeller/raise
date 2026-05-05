@@ -7,6 +7,7 @@ const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
 
 const NICHE_QUERIES = {
   fitness:    ['fitness workout 2025', 'gym training motivation'],
+  gym:           '17',
   gaming:     ['gaming highlights 2025', 'best games review'],
   tech:       ['tech review 2025', 'new technology gadgets'],
   music:      ['new music video 2025', 'music performance'],
