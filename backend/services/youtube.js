@@ -183,11 +183,11 @@ async function getVideos({ niche, sort = 'views', time = 'week' }) {
   const videos = await Promise.all(allItems.map(upsertVideoWithSnapshot));
 
   const now = Date.now();
-  const timeMs = { today: 86400000, week: 604800000, month: 2592000000 }[time] || 604800000;
-  const filtered = videos.filter(v => {
-    if (!v.publishedAt) return true;
-    return now - new Date(v.publishedAt).getTime() <= timeMs;
-  });
+const timeMs = { today: 86400000, week: 604800000, month: 2592000000 }[time] || 2592000000;
+const filtered = videos.filter(v => {
+  if (!v.publishedAt) return true;
+  return now - new Date(v.publishedAt).getTime() <= timeMs;
+});
 
   let sorted;
   if (sort === 'views') sorted = filtered.sort((a, b) => b.views - a.views);
