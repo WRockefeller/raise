@@ -52,13 +52,24 @@ export default function Navbar({ filters, onFilterChange }) {
             ))}
           </div>
 
+          <div className="w-px h-5 bg-border shrink-0 mx-1" />
+
+          {/* Hide Shorts toggle */}
+          <button
+            onClick={() => onFilterChange({ hideShorts: !filters.hideShorts })}
+            className={`filter-pill shrink-0 flex items-center gap-1.5 ${filters.hideShorts ? 'active' : ''}`}
+          >
+            <span>{filters.hideShorts ? '✕' : '○'}</span>
+            Hide Shorts
+          </button>
+
           {/* Current niche badge */}
           {user?.niche && (
             <>
               <div className="w-px h-5 bg-border shrink-0 mx-1" />
               <button
                 onClick={() => navigate('/niche')}
-                className="filter-pill text-accent border-accent/40"
+                className="filter-pill text-accent border-accent/40 shrink-0"
               >
                 #{user.niche}
               </button>

@@ -4,8 +4,8 @@ import { api } from '../utils/api';
 import Navbar from '../components/layout/Navbar';
 import { VideoCard, VideoCardSkeleton } from '../components/dashboard/VideoCard';
 
-const DEFAULT_FILTERS = { time: 'week', sort: 'trending' };
-const SKELETON_COUNT = 12;
+const DEFAULT_FILTERS = { time: 'week', sort: 'trending', hideShorts: false };
+const SKELETON_COUNT = 20;
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -19,7 +19,14 @@ export default function DashboardPage() {
     setError('');
     try {
       const data = await api.getVideos({ niche: user?.niche, ...f });
-      setVideos(data.videos || []);
+      let vids = data.videos || [];
+
+      // Filter out shorts client-side (duration under 60 seconds = shorts)
+      if (f.hideShorts) {
+        vids = vids.filter(v => !isShort(v));
+      }
+
+      setVideos(vids);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -36,6 +43,14 @@ export default function DashboardPage() {
     setFilters(next);
   };
 
+  // Shorts are typically under 60 seconds or have #shorts in title
+  function isShort(video) {
+    const title = (video.title || '').toLowerCase();
+    if (title.includes('#shorts') || title.includes('#short')) return true;
+    if (video.duration && video.duration <= 60) return true;
+    return false;
+  }
+
   return (
     <div className="min-h-screen bg-surface">
       <Navbar filters={filters} onFilterChange={handleFilterChange} />
@@ -51,6 +66,9 @@ export default function DashboardPage() {
                 {user?.niche ? (
                   <> in <span className="text-accent">#{user.niche}</span></>
                 ) : null}
+                {filters.hideShorts && (
+                  <span className="ml-2 text-sm text-white/30">(shorts hidden)</span>
+                )}
               </>
             )}
           </h1>
