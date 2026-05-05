@@ -5,48 +5,37 @@ const pool = require('../db');
 const cache = new NodeCache({ stdTTL: parseInt(process.env.CACHE_TTL) || 600 });
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
 
-// Multiple search terms per niche to get more videos
 const NICHE_QUERIES = {
-  fitness:        ['fitness workout','gym training','weight loss exercise','bodybuilding','home workout','cardio workout','strength training','fitness motivation'],
-  gaming:         ['gaming highlights','best games 2025','gaming news','game review','esports','gaming tips','new game release','gaming moments'],
-  tech:           ['tech review 2025','new technology','gadgets 2025','ai technology','tech news','smartphone review','laptop review','tech explained'],
-  music:          ['new music 2025','music video','song cover','music production','new album','music mix','singer performance','music reaction'],
-  cooking:        ['easy recipes','cooking tutorial','food recipe','meal prep','baking','cooking tips','dinner ideas','healthy food'],
-  travel:         ['travel vlog','travel tips','best destinations','travel guide','solo travel','budget travel','travel 2025','explore world'],
-  cars:           ['car review','supercar','new car 2025','car modification','car race','electric car','car test drive','automotive news'],
-  fashion:        ['fashion haul','outfit ideas','style tips','fashion trends','clothing review','fashion lookbook','ootd','fashion week'],
-  beauty:         ['makeup tutorial','skincare routine','beauty tips','hair tutorial','nail art','beauty products','glow up','beauty hacks'],
-  finance:        ['investing tips','stock market','passive income','financial advice','crypto update','money tips','wealth building','financial freedom'],
-  business:       ['business tips','entrepreneur advice','startup story','business strategy','how to make money','side hustle','business growth','success story'],
-  science:        ['science explained','science experiment','space news','physics explained','biology facts','chemistry','scientific discovery','nature documentary'],
-  education:      ['learn fast','study tips','history facts','math explained','educational video','knowledge facts','how things work','learning hacks'],
-  comedy:         ['funny moments','comedy sketch','stand up comedy','funny fails','prank videos','comedy show','funny reactions','humor'],
-  sports:         ['sports highlights','sports news','match highlights','athlete training','sports moments','best goals','sports analysis','game recap'],
-  anime:          ['anime review','best anime 2025','anime moments','anime explained','manga review','anime reaction','new anime','anime top list'],
-  crypto:         ['crypto news','bitcoin update','cryptocurrency','crypto investing','blockchain explained','altcoins','crypto trading','defi'],
-  ai:             ['ai news','artificial intelligence','chatgpt','ai tools','machine learning','ai explained','future of ai','ai update 2025'],
-  health:         ['health tips','mental health','nutrition advice','wellness routine','healthy lifestyle','diet tips','medical facts','mindfulness'],
-  diy:            ['diy project','home improvement','diy crafts','woodworking','diy decoration','how to fix','home renovation','creative projects'],
+  fitness:    ['fitness workout 2025', 'gym training motivation'],
+  gaming:     ['gaming highlights 2025', 'best games review'],
+  tech:       ['tech review 2025', 'new technology gadgets'],
+  music:      ['new music video 2025', 'music performance'],
+  cooking:    ['easy recipes 2025', 'cooking tutorial'],
+  travel:     ['travel vlog 2025', 'best travel destinations'],
+  cars:       ['car review 2025', 'supercar test drive'],
+  fashion:    ['fashion haul 2025', 'outfit ideas style'],
+  beauty:     ['makeup tutorial 2025', 'skincare routine'],
+  finance:    ['investing tips 2025', 'stock market explained'],
+  business:   ['business tips 2025', 'entrepreneur success'],
+  science:    ['science explained 2025', 'scientific discovery'],
+  education:  ['educational video 2025', 'learning tips'],
+  comedy:     ['funny moments 2025', 'comedy sketch'],
+  sports:     ['sports highlights 2025', 'match highlights'],
+  anime:      ['anime review 2025', 'best anime moments'],
+  crypto:     ['crypto news 2025', 'bitcoin update'],
+  ai:         ['artificial intelligence 2025', 'ai tools review'],
+  health:     ['health tips 2025', 'wellness routine'],
+  diy:        ['diy project 2025', 'home improvement ideas'],
 };
 
-// Fallback queries for unknown niches
 function getQueries(niche) {
   if (!niche) return ['trending videos 2025'];
   const key = niche.toLowerCase().trim();
   if (NICHE_QUERIES[key]) return NICHE_QUERIES[key];
-  // Try partial match
   for (const [k, v] of Object.entries(NICHE_QUERIES)) {
     if (key.includes(k) || k.includes(key)) return v;
   }
-  // Custom niche - generate queries
-  return [
-    `${niche} 2025`,
-    `best ${niche}`,
-    `${niche} tips`,
-    `${niche} tutorial`,
-    `${niche} news`,
-    `${niche} review`,
-  ];
+  return [`${niche} 2025`, `best ${niche} videos`];
 }
 
 function parseDuration(iso) {
@@ -161,11 +150,10 @@ async function getVideos({ niche, sort = 'views', time = 'week' }) {
   const seenIds = new Set();
   const allIds = [];
 
-  // Run first 4 queries in parallel to get ~200 video IDs fast
-  const batchSize = 4;
-  for (let i = 0; i < Math.min(queries.length, batchSize); i++) {
+  // Run queries one at a time to avoid quota issues
+  for (const query of queries) {
     try {
-      const ids = await searchVideos(queries[i], apiKey);
+      const ids = await searchVideos(query, apiKey);
       ids.forEach(id => {
         if (!seenIds.has(id)) {
           seenIds.add(id);
@@ -173,7 +161,7 @@ async function getVideos({ niche, sort = 'views', time = 'week' }) {
         }
       });
     } catch (err) {
-      console.error(`Query failed: ${queries[i]}`, err.message);
+      console.error(`Query failed: ${query}`, err.message);
     }
   }
 
@@ -188,6 +176,8 @@ async function getVideos({ niche, sort = 'views', time = 'week' }) {
       console.error('Details fetch failed:', err.message);
     }
   }
+
+  if (!allItems.length) throw new Error('No videos found. Check YouTube API quota.');
 
   const videos = await Promise.all(allItems.map(upsertVideoWithSnapshot));
 
