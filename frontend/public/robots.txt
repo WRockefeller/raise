@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://raise-lime.vercel.app/sitemap.xml
