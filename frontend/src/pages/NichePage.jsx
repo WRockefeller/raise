@@ -4,10 +4,31 @@ import { useAuth } from '../hooks/useAuth';
 import { api } from '../utils/api';
 
 const NICHES = [
-  'fitness', 'gaming', 'tech', 'music', 'cooking', 'travel',
-  'cars', 'fashion', 'beauty', 'education', 'science', 'finance',
-  'comedy', 'sports', 'film', 'animation', 'news', 'politics',
-  'productivity', 'mindfulness', 'crypto', 'startups', 'design',
+  'fitness', 'gym', 'bodybuilding', 'yoga', 'running', 'cycling',
+  'gaming', 'esports', 'minecraft', 'fortnite', 'roblox', 'valorant',
+  'tech', 'programming', 'coding', 'ai', 'gadgets', 'apple', 'android',
+  'music', 'hiphop', 'rap', 'pop', 'rock', 'edm', 'jazz', 'country',
+  'cooking', 'food', 'baking', 'vegan', 'recipes',
+  'travel', 'adventure', 'hiking', 'camping',
+  'cars', 'supercars', 'motorcycles', 'tesla', 'electric vehicles',
+  'fashion', 'beauty', 'makeup', 'skincare', 'hair',
+  'finance', 'investing', 'stocks', 'crypto', 'bitcoin', 'real estate',
+  'business', 'entrepreneurship', 'startups', 'marketing',
+  'education', 'history', 'science', 'math', 'languages',
+  'comedy', 'funny', 'memes', 'standup',
+  'sports', 'football', 'basketball', 'soccer', 'tennis', 'golf', 'boxing', 'mma',
+  'film', 'movies', 'animation', 'anime',
+  'news', 'politics', 'entertainment', 'celebrity',
+  'pets', 'dogs', 'cats', 'animals', 'wildlife',
+  'diy', 'crafts', 'home improvement', 'gardening',
+  'productivity', 'mindfulness', 'meditation', 'self improvement',
+  'design', 'art', 'photography', 'drawing',
+  'kids', 'family', 'parenting',
+];
+
+const TRENDING = [
+  'fitness', 'tech', 'gaming', 'cars', 'music', 'finance',
+  'ai', 'crypto', 'cooking', 'travel', 'beauty', 'sports',
 ];
 
 export default function NichePage() {
@@ -20,8 +41,8 @@ export default function NichePage() {
   const inputRef = useRef(null);
 
   const suggestions = value.trim()
-    ? NICHES.filter((n) => n.includes(value.toLowerCase().trim())).slice(0, 6)
-    : NICHES.slice(0, 6);
+    ? NICHES.filter((n) => n.includes(value.toLowerCase().trim())).slice(0, 8)
+    : NICHES.slice(0, 8);
 
   const handleSelect = async (niche) => {
     setValue(niche);
@@ -60,7 +81,7 @@ export default function NichePage() {
             onFocus={() => setShowDropdown(true)}
             onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
             className="input-dark text-lg py-4 pr-24"
-            placeholder="fitness, cars, tech…"
+            placeholder="fitness, cars, tech, gaming…"
             autoFocus
           />
           <button
@@ -71,7 +92,6 @@ export default function NichePage() {
             {loading ? '…' : 'Go'}
           </button>
 
-          {/* Autocomplete dropdown */}
           {showDropdown && suggestions.length > 0 && (
             <div className="absolute w-full mt-2 bg-surface-1 border border-border rounded-xl overflow-hidden z-10">
               {suggestions.map((s) => (
@@ -90,11 +110,10 @@ export default function NichePage() {
 
         {error && <p className="text-red-400 text-sm mt-3 text-center">{error}</p>}
 
-        {/* Trending niches */}
         <div className="mt-8">
           <p className="text-xs text-white/20 mb-3 uppercase tracking-widest">Trending niches</p>
           <div className="flex flex-wrap gap-2">
-            {['fitness', 'tech', 'gaming', 'cars', 'music', 'finance'].map((n) => (
+            {TRENDING.map((n) => (
               <button
                 key={n}
                 onClick={() => handleSelect(n)}
